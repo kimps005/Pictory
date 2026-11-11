@@ -35,6 +35,7 @@ interface AuthValue {
   signUp: (accountId: string, password: string, nickname: string) => Promise<{ error: string; notice?: string }>;
   logIn: (accountIdOrEmail: string, password: string) => Promise<{ error: string; notice?: string }>;
   logOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: string }>;
 }
 
 const AuthCtx = createContext<AuthValue | null>(null);
@@ -253,7 +254,40 @@ export function AppProviders({ children }: { children: ReactNode }) {
     if (client) await client.auth.signOut();
   }, []);
 
-  const auth: AuthValue = { ready, user, displayName, authError, signUp, logIn, logOut };
+  const deleteAccount = useCallback(async () => {
+    await waitForUserDataWrites();
+    if (user === ADMIN_USER_ID) {
+      await clearUserData();
+      clearUserDataMemory();
+      localStorage.removeItem(ADMIN_SESSION_KEY);
+      setUser(null);
+      setDisplayName("");
+      return { error: "" };
+    }
+
+    const client = getSupabaseBrowserClient();
+    if (!client) return { error: "Supabase 설정을 확인해 주세요." };
+    const { data: { session }, error: sessionError } = await client.auth.getSession();
+    if (sessionError || !session?.access_token) return { error: "로그인 정보를 확인할 수 없어요. 다시 로그인한 뒤 시도해 주세요." };
+
+    const response = await fetch("/api/account", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      return { error: body.error || "계정을 탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요." };
+    }
+
+    clearUserDataMemory();
+    setUser(null);
+    setDisplayName("");
+    // 계정 삭제로 refresh token도 폐기되어 signOut 오류는 무시한다.
+    await client.auth.signOut().catch(() => undefined);
+    return { error: "" };
+  }, [user]);
+
+  const auth: AuthValue = { ready, user, displayName, authError, signUp, logIn, logOut, deleteAccount };
 
   return (
     <AuthCtx.Provider value={auth}>

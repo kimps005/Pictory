@@ -20,6 +20,7 @@ CLOUDFLARE_ACCOUNT_ID=Cloudflare_계정_ID
 CLOUDFLARE_API_TOKEN=Workers_AI_권한_토큰
 NEXT_PUBLIC_SUPABASE_URL=Supabase_프로젝트_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=Supabase_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=Supabase_service_role_key
 ```
 
 Supabase 프로젝트를 만든 뒤 SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql)을 한 번 실행한다. URL과 publishable key는 Supabase Project Settings → API Keys에서 확인한다. Auth → URL Configuration에 로컬 주소와 배포 도메인도 등록한다. 이 앱은 보호자 이메일·비밀번호 로그인으로 바뀌었고, 동화·감정·몽·설정 데이터는 Supabase의 `user_data` 테이블에 저장된다. 데이터는 계정별 RLS 정책으로 분리한다. 이전 닉네임 로그인 세션이 이 브라우저에 남아 있으면 첫 로그인 때 기존 기기 기록을 새 계정으로 옮긴다.
@@ -30,7 +31,7 @@ Supabase 프로젝트를 만든 뒤 SQL Editor에서 [`supabase/schema.sql`](sup
 npm run dev
 ```
 
-배포(Vercel)에는 `.env.local`이 올라가지 않는다. Vercel 프로젝트 소유자가 Settings → Environment Variables에 위 환경변수들을 추가하고 새 배포를 해야 한다. Supabase publishable key는 브라우저에서 쓰는 공개 키이며, 비밀 키나 service role key는 절대 클라이언트 환경변수로 설정하지 않는다.
+배포(Vercel)에는 `.env.local`이 올라가지 않는다. Vercel 프로젝트 소유자가 Settings → Environment Variables에 위 환경변수들을 추가하고 새 배포를 해야 한다. Supabase publishable key는 브라우저에서 쓰는 공개 키이며, service role key는 계정 탈퇴 API가 서버에서만 사용한다. 비밀 키나 service role key를 `NEXT_PUBLIC_` 환경변수로 설정하지 않는다.
 
 삽화 생성에는 Cloudflare Workers AI 계정 ID와 API 토큰이 필요하다. 배포 환경에도 위 두 값을 설정한다. 직접 그리거나 PNG/JPG 그림을 올리면 원본 그림을 장면 배경에 합성한다.
 
