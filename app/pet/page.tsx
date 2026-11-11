@@ -30,7 +30,6 @@ function dateKey(year: number, month: number, day: number) {
 export default function PetPage() {
   const { pet, library } = useApp();
   const [action, setAction] = useState<"fed" | "petted" | undefined>();
-  const [testOpen, setTestOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [popping, setPopping] = useState(false); // 알이 깨진 직후 몽이가 튀어나오는 동안
   const [renaming, setRenaming] = useState(false);
@@ -76,29 +75,6 @@ export default function PetPage() {
     setShownMonth({ year: moved.getFullYear(), month: moved.getMonth() });
   };
 
-  const showDate = (date: string) => {
-    const shown = new Date(`${date}T12:00:00`);
-    setShownMonth({ year: shown.getFullYear(), month: shown.getMonth() });
-  };
-
-  const changeTestDate = (date: string) => {
-    pet.setTestDate(date);
-    showDate(date);
-  };
-
-  const advanceTestDate = (days: number) => {
-    const advanced = new Date(`${today}T12:00:00`);
-    advanced.setDate(advanced.getDate() + days);
-    const nextDate = localDateKey(advanced.getTime());
-    pet.advanceTestDate(days);
-    showDate(nextDate);
-  };
-
-  const resetTest = () => {
-    pet.resetTest();
-    showDate(localDateKey());
-  };
-
   const canCare = pet.state.points >= 1;
   const showIntro = !pet.state.introSeen;
   const introReveal = () => { setPopping(true); window.setTimeout(() => setPopping(false), 3200); };
@@ -106,31 +82,6 @@ export default function PetPage() {
 
   return (
     <main className="page-turn mx-auto w-full max-w-md px-4 py-8 md:max-w-4xl md:px-8 md:py-12">
-      <div className="flex items-center justify-end gap-3">
-        <button type="button" onClick={() => setTestOpen((open) => !open)} className="calm shrink-0 rounded-lg border border-dashed border-line bg-surface px-3 py-2 text-sm text-ink-2 hover:bg-sunk">
-          {testOpen ? "테스트 닫기" : "날짜 테스트"}
-        </button>
-      </div>
-
-      {testOpen && (
-        <section className="mt-3 rounded-2xl border border-accent/40 bg-[#fdf0d2] p-4" aria-label="펫 성장 날짜 테스트">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="font-medium text-ink">임시 날짜 테스트</h2>
-              <p className="mt-1 text-sm text-ink-2">날짜를 앞으로 옮기면 그동안 매일 돌본 것으로 채워져 {pet.state.name}의 성장을 바로 볼 수 있어요.</p>
-            </div>
-            <label className="flex shrink-0 items-center gap-2 text-sm text-ink-2">
-              테스트 날짜
-              <input type="date" value={today} onChange={(event) => changeTestDate(event.target.value)} className="rounded-lg border border-line bg-surface px-3 py-2 text-ink" />
-            </label>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {[1, 14, 60, 180].map((days) => <button key={days} type="button" onClick={() => advanceTestDate(days)} className="calm rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-paper">+{days}일</button>)}
-            <button type="button" onClick={resetTest} className="calm ml-auto rounded-lg px-3 py-2 text-sm text-ink-2 underline hover:text-ink">실제 오늘로 초기화</button>
-          </div>
-        </section>
-      )}
-
       {showIntro && typeof document !== "undefined" && createPortal(<HatchIntro onReveal={introReveal} onDone={() => pet.setIntroSeen(true)} />, document.body)}
 
       <div className="mt-8">
