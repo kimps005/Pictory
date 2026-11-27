@@ -1,174 +1,253 @@
 # 픽토리 (Pictory)
 
-아이의 그림(Picture)이 하나의 이야기(Story)가 된다.
+> 아이의 그림(Picture)이 하나의 이야기(Story)가 된다.
 
-아이의 고민을 동화로 겪게 하고, 아이가 고른 선택으로 부모와의 대화를 만들고, 그 대화가 다음 동화로 이어지는 서비스. (만 4~7세 · 모바일 우선 웹앱)
+아이가 요즘 겪는 고민을 동화로 겪어 보게 하는 모바일 우선 웹앱입니다. 아이가 이야기 속에서 고른 선택은 부모와의 대화 카드가 되고, 부모가 남긴 메모는 다음 동화로 이어집니다. 대상은 만 3~8세입니다.
 
-## 시작하기
+```
+고민 고르기 → 동화 읽기 + 선택 2번 → 부모 대화 카드 → 메모 → 다음 동화에 반영
+```
 
-1. Node.js LTS 설치 후 의존성 설치
+## 목차
+
+- [주요 기능](#주요-기능)
+- [기술 스택](#기술-스택)
+- [빠르게 시작하기](#빠르게-시작하기)
+- [환경변수](#환경변수)
+- [아키텍처](#아키텍처)
+- [프로젝트 구조](#프로젝트-구조)
+- [API](#api)
+- [AI 장애 대응 (폴백)](#ai-장애-대응-폴백)
+- [보안과 개인정보](#보안과-개인정보)
+- [개발 가이드](#개발-가이드)
+- [배포](#배포)
+
+## 주요 기능
+
+| 기능 | 설명 | 화면 |
+|---|---|---|
+| 동화 만들기 | 고민 상황, 나이, 길이(자동 또는 1~10분)를 고르고 주인공을 직접 그릴 수 있습니다 | `/create` |
+| 선택형 동화 읽기 | 장면마다 삽화가 붙고, 아이가 선택지 2번을 고르거나 직접 입력해 이야기가 갈라집니다 | `/read` |
+| 낭독 | Azure Speech 음성 2종(선히·현수), 속도 3단계 | `/read` |
+| 부모 대화 카드 | 아이가 고른 선택을 인용한 질문 3개와 답변 팁 | `/card` |
+| 내 서재 | 끝까지 읽은 동화와 부모 메모 보관 | `/library` |
+| 몽이 키우기 | 감정 스티커, 별 모으기, 돌봄으로 자라는 펫 | `/pet` |
+| 부모 마음 리포트 | 최근 7일의 감정·선택·메모를 바탕으로 한 실천 제안과 주간 리포트 | `/insights` |
+| 설정 | 글자 크기, 낭독 목소리, 계정 탈퇴 | `/settings` |
+
+## 기술 스택
+
+| 영역 | 사용 기술 |
+|---|---|
+| 프레임워크 | Next.js 16 (App Router, Cache Components), React 19, TypeScript |
+| 스타일 | Tailwind CSS 4 |
+| 이야기·리포트 생성 | Google Gemini (`@google/genai`, JSON 스키마 응답) |
+| 삽화 생성 | Cloudflare Workers AI, FLUX.2 Klein 4B |
+| 그림 처리 | `sharp` (종이 배경 제거, 장면 합성) |
+| 낭독 | Azure Speech Neural TTS |
+| 인증·DB | Supabase Auth, Postgres (RLS) |
+| 배포 | Vercel |
+
+## 빠르게 시작하기
+
+**필요한 것:** Node.js 20 이상(LTS 권장), Supabase 프로젝트, Gemini API 키
 
 ```bash
 npm install
+# 프로젝트 루트에 .env.local을 만들고 아래 환경변수 표의 값을 채웁니다
+npm run dev   # http://localhost:3000
 ```
 
-2. 프로젝트 루트에 `.env.local` 파일을 만들고 Gemini 키를 넣는다. (이 파일은 깃에 올라가지 않는다. 키를 채팅이나 코드에 붙이지 말 것)
+처음 한 번만 하는 Supabase 설정:
+
+1. Supabase SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql)을 실행합니다. `user_data` 테이블과 RLS 정책이 만들어집니다.
+2. **Authentication → Providers → Email**에서 **Confirm email**을 끕니다. 아이디는 내부적으로 `아이디@accounts.pictory.app` 형식의 이메일로 저장되며, 실제 메일은 보내지 않습니다.
+3. **Authentication → URL Configuration**에 로컬 주소와 배포 도메인을 등록합니다.
+
+## 환경변수
+
+`.env*` 파일은 `.gitignore`에 들어 있어 커밋되지 않습니다. 키를 코드나 채팅에 붙여 넣지 마세요.
+
+| 변수 | 필수 | 범위 | 설명 |
+|---|:---:|---|---|
+| `GEMINI_API_KEY` | ✅ | 서버 | 동화, 부모 카드, 리포트 생성과 삽화 속 주인공 확인 |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | 공개 | Supabase 프로젝트 URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ✅ | 공개 | Supabase publishable key (브라우저용 공개 키) |
+| `SUPABASE_SERVICE_ROLE_KEY` | 탈퇴 기능 | 서버 | 계정 탈퇴 API(`/api/account`)에서만 사용 |
+| `CLOUDFLARE_ACCOUNT_ID` | 삽화 | 서버 | Workers AI 계정 ID |
+| `CLOUDFLARE_API_TOKEN` | 삽화 | 서버 | Workers AI 권한 토큰 |
+| `AZURE_SPEECH_KEY` | 낭독 | 서버 | Azure Speech 리소스 키 |
+| `AZURE_SPEECH_REGION` | 낭독 | 서버 | 소문자 지역명 (예: `koreacentral`) |
+| `GEMINI_MODEL` | | 서버 | 기본 모델. 기본값 `gemini-3.5-flash-lite` |
+| `GEMINI_FALLBACK_MODELS` | | 서버 | 기본 모델이 실패할 때 쓸 모델(쉼표 구분). 기본값 `gemini-3.5-flash,gemini-3.6-flash` |
+| `GEMINI_VISION_MODEL` | | 서버 | 주인공 확인용 비전 모델. 없으면 `GEMINI_MODEL`을 씁니다 |
+
+> [!WARNING]
+> 서버 전용 키(`SUPABASE_SERVICE_ROLE_KEY`, Cloudflare, Azure, Gemini)에는 절대 `NEXT_PUBLIC_` 접두사를 붙이지 마세요. 붙이면 브라우저 번들에 그대로 포함됩니다.
+
+선택 기능의 키가 없으면 그 기능만 꺼집니다. 삽화 API는 503을 돌려주고, 동화와 선택은 계속 진행됩니다.
+
+<details>
+<summary>Azure Speech 리소스 만들기</summary>
+
+1. [Azure Portal](https://portal.azure.com/)에서 **Speech** 리소스를 만듭니다. 시작 단계라면 **F0 (Free)** 계층으로 충분합니다.
+2. **Keys and Endpoint**에서 키와 지역을 확인해 `.env.local`에 넣습니다.
+3. F0는 Neural TTS가 월 50만 자까지 무료이고, 리소스당 60초에 20건까지 요청할 수 있습니다.
+
+</details>
+
+## 아키텍처
 
 ```
-GEMINI_API_KEY=발급받은_키
-CLOUDFLARE_ACCOUNT_ID=Cloudflare_계정_ID
-CLOUDFLARE_API_TOKEN=Workers_AI_권한_토큰
-NEXT_PUBLIC_SUPABASE_URL=Supabase_프로젝트_URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=Supabase_publishable_key
-SUPABASE_SERVICE_ROLE_KEY=Supabase_service_role_key
+브라우저 (React 클라이언트)
+ ├─ useStory          동화 진행 상태: 장면, 선택, 부모 카드, 이어 읽기
+ ├─ useStoryImages    장면별 삽화 요청 큐 (실패해도 읽기를 막지 않음)
+ ├─ useNarration      낭독 재생
+ ├─ usePet            몽이 상태
+ └─ lib/localStore    메모리 캐시 ⇄ Supabase user_data (사용자별 키-값)
+        │
+        ▼
+Next.js Route Handlers (서버, 상태 없음)
+ ├─ /api/story/*      → Gemini (모델 순환 재시도) → 실패하면 폴백 동화
+ ├─ /api/image        → Cloudflare FLUX → Gemini 비전으로 주인공 확인 → 필요하면 아이 그림 합성
+ ├─ /api/tts          → Azure Speech
+ ├─ /api/insights     → Gemini → 실패하면 템플릿 리포트
+ └─ /api/account      → Supabase Admin (토큰 검증 후 본인 계정만 삭제)
 ```
 
-Supabase 프로젝트를 만든 뒤 SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql)을 한 번 실행한다. URL과 publishable key는 Supabase Project Settings → API Keys에서 확인한다. Auth → URL Configuration에 로컬 주소와 배포 도메인도 등록한다. 이 앱은 보호자 이메일·비밀번호 로그인으로 바뀌었고, 동화·감정·몽·설정 데이터는 Supabase의 `user_data` 테이블에 저장된다. 데이터는 계정별 RLS 정책으로 분리한다. 이전 닉네임 로그인 세션이 이 브라우저에 남아 있으면 첫 로그인 때 기존 기기 기록을 새 계정으로 옮긴다.
+**설계 원칙**
 
-3. 개발 서버 실행 후 http://localhost:3000 접속
+- **서버에 이야기 상태를 두지 않습니다.** 클라이언트가 지금까지의 장면과 선택을 매 요청에 함께 보냅니다. 서버는 요청을 검증하고 생성만 합니다.
+- **AI가 실패해도 화면은 멈추지 않습니다.** 동화, 부모 카드, 리포트, 삽화 배경에 각각 대체 경로가 있습니다.
+- **아이 그림이 주인공입니다.** 그림을 그리면 원본에서 종이 배경을 지운 캐릭터를 모델에 참조로 줍니다. 생성된 장면에 그 캐릭터가 없으면 한 번 다시 시도하고, 그래도 없으면 배경만 그린 뒤 아이 그림을 직접 합성합니다.
+- **사용자 데이터는 Supabase에만 저장합니다.** 브라우저 메모리는 화면 표시용 캐시이고, 로그인할 때 DB에서 다시 불러옵니다.
 
-```bash
-npm run dev
-```
-
-배포(Vercel)에는 `.env.local`이 올라가지 않는다. Vercel 프로젝트 소유자가 Settings → Environment Variables에 위 환경변수들을 추가하고 새 배포를 해야 한다. Supabase publishable key는 브라우저에서 쓰는 공개 키이며, service role key는 계정 탈퇴 API가 서버에서만 사용한다. 비밀 키나 service role key를 `NEXT_PUBLIC_` 환경변수로 설정하지 않는다.
-
-삽화 생성에는 Cloudflare Workers AI 계정 ID와 API 토큰이 필요하다. 배포 환경에도 위 두 값을 설정한다. 직접 그리거나 PNG/JPG 그림을 올리면 원본 그림을 장면 배경에 합성한다.
-
-선택 환경변수: `GEMINI_MODEL` (기본 `gemini-3.5-flash-lite`). 기획안의 `gemini-2.5-flash`는 신규 사용자에게 막혀 있다. `gemini-3.8-flash`는 품질이 낫지만 수요가 몰리면 수십 초 걸린다.
-
-## Azure Speech 낭독(TTS)
-
-현수(`ko-KR-HyunsuMultilingualNeural`)와 선히(`ko-KR-SunHiNeural`) 음성만 서버 API에서 허용한다. 브라우저는 `/api/tts`에 글과 음성 선택만 보내고, Azure Speech 키는 서버에만 둔다.
-
-1. [Azure Portal](https://portal.azure.com/)에서 **Speech** 리소스를 만든다. 적은 사용량으로 시작하려면 가격 책정 계층에서 **F0 (Free)** 를 선택한다.
-2. 생성한 Speech 리소스의 **Keys and Endpoint**에서 키를 복사하고 리소스의 지역(Region)도 확인한다. 지역은 예를 들어 `koreacentral`처럼 소문자로 입력한다.
-3. 로컬에서는 `.env.local`에 다음 값을 채운다.
-
-   ```dotenv
-   AZURE_SPEECH_KEY=발급받은_Speech_키
-   AZURE_SPEECH_REGION=리소스_지역
-   ```
-
-4. Vercel 프로젝트의 **Settings → Environment Variables**에도 `AZURE_SPEECH_KEY`와 `AZURE_SPEECH_REGION`을 추가한 뒤 재배포한다.
-
-F0 실시간 Neural TTS는 월 50만 자 무료이며, 요청은 Speech 리소스당 60초에 최대 20건이다. 글자 한도와 요청 한도는 별개다. Azure 키는 `NEXT_PUBLIC_` 접두사를 붙이지 않는다.
-
-## 구조
+## 프로젝트 구조
 
 ```
 app/
-  page.tsx                  → StoryApp을 렌더링할 뿐
-  useStory.ts               → 동화 진행 로직 전부 (상태, API 호출, 메모 저장). 화면 없음  ← 새 화면은 이것만 연결
-  StoryApp.tsx              → 훅의 값을 그리기만 하는 임시 화면 (입력 → 동화 → 선택 → 부모 카드 → 메모). 스타일 없음
-  api/story/
-    route.ts                → POST /api/story           이야기 시작
-    continue/route.ts       → POST /api/story/continue  선택 반영 이어쓰기
-    parent-card/route.ts    → POST /api/story/parent-card 부모 카드
-lib/story/
-  schema.ts                 → 모든 요청·응답 타입과 Gemini용 JSON 스키마  ← 가장 먼저 볼 파일
-  prompts.ts                → 프롬프트 3종 (시작·이어쓰기·부모 카드). 문구만 고치면 품질이 바뀐다
-  generate.ts               → Gemini 호출 (JSON 형식이 깨지면 1회 재시도)
-  validate.ts               → 요청 본문 검증
-  fallback.ts               → AI 실패 시 안전망 (미리 만든 동화 + 부모 카드 템플릿)
-  fallback-data.json        → 프리셋 4개의 미리 만든 분기 동화 (자동 생성)
-  presets.ts                → 화면의 고민 상황 프리셋 4개
-scripts/
-  gen-fallback.mjs          → fallback-data.json 다시 만들기
+  api/                      Route Handlers (위 아키텍처 참고)
+  create/ read/ card/       동화 만들기 → 읽기 → 부모 카드
+  library/ pet/ insights/   서재, 몽이, 부모 리포트
+  login/ settings/          로그인·가입, 설정·탈퇴
+  components/               공용 UI (Shell, ui.tsx, 일러스트)
+  providers.tsx             인증과 앱 전역 상태 (AuthCtx, AppCtx)
+  useStory.ts               동화 진행 로직 (화면 없음)
+  useStoryImages.ts         삽화 생성 큐
+  useNarration.ts           낭독
+  usePet.ts                 몽이 상태
+  useReaderPagination.ts    큰 글씨에서 넘치는 본문을 쪽으로 나누기
+lib/
+  story/
+    schema.ts               요청·응답 타입과 Gemini JSON 스키마 ← 먼저 볼 파일
+    prompts.ts              시스템·시작·이어쓰기·부모 카드 프롬프트
+    generate.ts             Gemini 호출 (모델 순환, 시간 예산 45초)
+    validate.ts             요청 본문 검증
+    fallback.ts             폴백 동화와 부모 카드 템플릿
+    fallback-data.json      미리 만든 분기 동화 (자동 생성)
+  image/                    삽화 프롬프트, Cloudflare 호출, 그림 오려내기·합성, 주인공 확인
+  http.ts                   JSON 본문 파싱 공용 헬퍼
+  localStore.ts             사용자 데이터 저장소 (useStored 훅)
+  supabase/client.ts        브라우저 Supabase 클라이언트
+scripts/gen-fallback.mjs    fallback-data.json 다시 만들기
+supabase/schema.sql         DB 스키마와 RLS 정책
+tests/                      node:test 회귀 테스트
 ```
 
-## 동화 한 편의 흐름
+## API
 
-서버는 상태를 저장하지 않는다. 화면이 지금까지의 장면과 아이의 선택을 들고 있다가 매 요청에 같이 보낸다.
+모든 엔드포인트는 `POST`(탈퇴만 `DELETE`)입니다. 실패하면 `{ "error": "화면에 보여줘도 되는 문장" }`을 돌려줍니다.
 
-| 순서 | 호출 | 받는 것 |
+| 엔드포인트 | 요청 | 응답 |
 |---|---|---|
-| 1 | `POST /api/story` | 장면 2~3개(3분 2개, 5분 3개) + 첫 번째 선택 |
-| 2 | 아이가 선택 → `POST /api/story/continue` (`choices` 1개) | 장면 2~3개 + 두 번째 선택 |
-| 3 | 아이가 선택 → `POST /api/story/continue` (`choices` 2개) | 결말 장면 2~3개 (`isEnding: true`, `choice: null`) |
-| 4 | `POST /api/story/parent-card` | 부모 카드 |
-| 5 | 부모가 메모 저장 → 다음 동화는 1번에 `previousMemo`를 넣어 호출 | 메모를 이어받은 새 동화 |
+| `/api/story` | `{ age, situation, durationMin?, protagonist?, previousMemo?, recentContext? }` | `StorySegment`: 장면 + 첫 선택 |
+| `/api/story/continue` | 위 필드 + `{ title, scenesSoFar[], choices[1\|2] }` | 선택이 1개면 장면 + 두 번째 선택, 2개면 결말(`isEnding: true`) |
+| `/api/story/parent-card` | `{ age, situation, protagonist?, title, choices[] }` | `ParentCard`: `{ summary, questions[3], answerTip }` |
+| `/api/insights` | `{ moods[≤7], stories[≤8] }` | `ParentInsight`: `{ actionCard, weeklyReport, storyGuidance }` |
+| `/api/image` | `multipart/form-data`: `mode`, `prompt`, `image_0`, `scene_ref` 등 | PNG/JPEG 이미지 (`x-protagonist-check`, `x-background-source` 헤더) |
+| `/api/tts` | `{ text, voice: "sunhi"\|"hyunsu", rate: 0.7\|0.9\|1.1 }` | `audio/mpeg` |
+| `/api/account` | `Authorization: Bearer <access_token>` | `{ ok: true }` |
 
-### 요청 예시
+`copingType`은 `도움요청` · `스스로진정` · `회피` · `직면` · `직접입력` 중 하나입니다. 정확한 타입은 [`lib/story/schema.ts`](lib/story/schema.ts)에 있습니다.
+
+<details>
+<summary>요청 예시</summary>
 
 ```jsonc
 // POST /api/story
-{ "age": 5, "situation": "치과가 무서워", "durationMin": 5, "protagonist": "파란 토끼", "previousMemo": "윙 소리가 무섭대요" }
-// protagonist, previousMemo는 선택
+{ "age": 5, "situation": "치과가 무서워", "durationMin": 5, "protagonist": "파란 토끼" }
 
-// POST /api/story/continue  (1번 응답의 title, 장면 text들, 아이가 고른 선택을 그대로 보낸다)
-{ "age": 5, "situation": "치과가 무서워", "durationMin": 5, "protagonist": "파란 토끼",
-  "title": "치과에 간 날",
-  "scenesSoFar": ["장면1 text", "장면2 text"],
+// POST /api/story/continue — 앞 응답의 title과 장면 text, 아이가 고른 선택을 그대로 보냅니다
+{ "age": 5, "situation": "치과가 무서워", "title": "치과에 간 날",
+  "scenesSoFar": ["장면1", "장면2"],
   "choices": [{ "prompt": "어떻게 할까요?", "text": "엄마 손을 꼭 잡아요", "copingType": "도움요청" }] }
-
-// POST /api/story/parent-card
-{ "age": 5, "situation": "치과가 무서워", "protagonist": "파란 토끼", "title": "치과에 간 날",
-  "choices": [ /* 아이가 고른 선택 전부 */ ] }
 ```
 
-### 응답 형식
+</details>
 
-- 이야기 (`StorySegment`): `{ title, scenes: [{ text, imagePrompt }], choice: { prompt, options: [{ id, text, copingType }] } | null, isEnding }`
-- 부모 카드 (`ParentCard`): `{ summary, questions: [{ text, hint }] (정확히 3개), answerTip }`
-- `copingType`은 `도움요청` · `스스로진정` · `회피` · `직면` 중 하나다.
-- 실패하면 `{ "error": "메시지" }`와 400(입력 오류) 또는 500을 돌려준다. 화면에 그대로 보여줘도 되는 문장이다.
+## AI 장애 대응 (폴백)
 
-## 담당별로 알아둘 것
+Gemini 호출은 한 번에 최대 20초를 기다립니다. 실패하면 대체 모델을 돌아가며 전체 45초 안에서 다시 시도하고, 그래도 실패하면 아래 경로로 넘어갑니다. 폴백 응답에는 `fallback: true`가 붙고, 화면에 작은 안내 문구가 나옵니다.
 
-**프론트**
-- **새 화면(목업)은 `useStory` 훅만 연결하면 된다.** API 호출, 장면·선택 상태, 메모 저장은 전부 [app/useStory.ts](app/useStory.ts)가 한다. 파일 맨 위 주석에 돌려주는 값과 함수 목록이 있다.
-  ```tsx
-  const s = useStory();
-  s.step; s.error; s.title; s.scenes; s.choice; s.isEnding; s.card; s.savedMemo; s.usedFallback
-  s.start({ age, situation, durationMin, protagonist }); s.pick(option); s.showCard(); s.saveMemo(text); s.nextStory(memo); s.reset();
-  ```
-- `StoryApp.tsx`는 훅을 쓴 임시 화면이라 통째로 갈아끼워도 된다. 스타일도 마음대로 바꾼다.
-- 화면 단계는 `step`(`form` / `loading` / `story` / `card`)으로 돈다.
-- `s.usedFallback`이 `true`면 AI 대신 미리 만든 동화가 쓰인 것이다. 임시 화면처럼 작은 안내 문구를 보여주면 된다.
-- 선택을 누르면 1~4초 동안 `loading` 화면이 되어 기존 장면이 사라진다. 장면을 유지한 채 로딩을 표시하면 더 좋다.
-- 사용자별 동화, 감정, 펫, 설정, 초안은 Supabase `user_data`에 저장한다. 브라우저 메모리는 화면 표시용 캐시이며, 로그인 직후 DB에서 다시 불러온다.
-- 아직 없는 것: 삽화 표시, 낭독(TTS), 그림 업로드.
+| 호출 | 실패하면 |
+|---|---|
+| `/api/story` | 미리 만든 동화 4편 중 하나. 상황에 "치과", "어린이집", "동생", "주사", "병원"이 들어가야 하고, 해당하지 않으면 500 |
+| `/api/story/continue` | 폴백 동화로 시작한 이야기만 이어집니다. 선택에 따라 7구간으로 갈라집니다 |
+| `/api/story/parent-card` | 아이의 선택을 끼워 넣은 템플릿 카드 (항상 성공) |
+| `/api/insights` | 템플릿 리포트 (항상 성공) |
+| `/api/image` | 사용량 초과나 장애일 때 로컬 기본 배경에 아이 그림을 합성 |
 
-**이미지**
-- 기획안의 이미지 생성은 Cloudflare Workers AI(FLUX.2 klein)다. Gemini 키로는 이미지를 만들 수 없다(무료 티어 없음).
-- 각 장면의 `imagePrompt`는 영어 한 문장이고, 주인공을 항상 `the main character`로만 부른다. 주인공 외형은 캐릭터 참조 이미지로 정해지는 구조라서다.
-- 그림 업로드 자리는 `StoryApp.tsx`의 "주인공" 입력칸이다.
-
-**프롬프트**
-- 문구는 `lib/story/prompts.ts`에 모여 있다. 지켜야 할 규칙: 어떤 선택도 틀린 선택으로 다루지 않는다(회피 포함), 훈계·진단·심리 분석 표현을 쓰지 않는다, 아이 이름을 받지 않는다.
-- 수정 후에는 같은 입력으로 여러 번 돌려서 JSON 형식이 안 깨지는지 확인한다.
-
-## AI가 실패할 때 (폴백)
-
-시연 중에 Gemini가 느리거나 막혀도 멈추지 않도록 안전망이 있다. Gemini 호출은 한 번에 12초를 넘기면 포기하고(1회 재시도), 그래도 실패하면 아래로 넘어간다.
-
-| 호출 | 실패하면 | 응답에 붙는 표시 |
-|---|---|---|
-| `/api/story` (시작) | 프리셋 4개(또는 "치과", "어린이집", "동생", "주사", "병원"이 들어간 직접 입력)는 미리 만든 동화를 준다. 그 외 입력은 500 에러 | `fallback: true` |
-| `/api/story/continue` | 미리 만든 동화로 시작한 이야기는 계속 이어진다. AI가 만든 시작 뒤에 실패하면 500 에러 | `fallback: true` |
-| `/api/story/parent-card` | 아이가 고른 선택을 끼워 넣은 템플릿 카드. 어떤 입력에도 항상 동작 | `fallback: true` |
-
-- 미리 만든 동화는 프리셋마다 7구간(시작 1 + 선택별 중간 2 + 결말 4)이라 선택에 따라 갈라진다. 주인공은 AI가 고른 동물이라 입력한 주인공 이름은 반영되지 않는다.
-- 프리셋 문구나 프롬프트를 바꿨다면 폴백 동화도 다시 만든다. `npm run dev`를 켠 상태에서 (약 3분):
-  ```bash
-  node scripts/gen-fallback.mjs
-  ```
-  결과는 `lib/story/fallback-data.json`에 저장된다. 읽어 보고 어색한 문장은 JSON을 직접 고쳐도 된다.
-- 실패를 흉내 내 보려면 잘못된 키로 서버를 켠다: `GEMINI_API_KEY=x npm run dev` (PowerShell은 `$env:GEMINI_API_KEY="x"; npm run dev`).
-
-## 개발 명령
+폴백 동화 다시 만들기 (`npm run dev`를 켠 상태에서 약 3분):
 
 ```bash
-npm run dev     # 개발 서버
-npm run lint    # 린트
-npm run build   # 프로덕션 빌드 (푸시 전에 한 번 돌리면 안전하다)
+node scripts/gen-fallback.mjs
 ```
 
-이 프로젝트의 Next.js는 일반 버전과 다른 점이 있다. 코드를 쓰기 전에 `node_modules/next/dist/docs/`의 해당 문서를 확인할 것. ([AGENTS.md](AGENTS.md) 참고)
+> [!NOTE]
+> 화면 프리셋([`lib/story/presets.ts`](lib/story/presets.ts))과 스크립트의 프리셋 목록은 다릅니다. 프리셋 문구를 바꿨다면 스크립트의 `PRESETS`도 함께 맞춘 뒤 다시 생성하세요.
 
-## 아직 안 된 것
+폴백 경로 직접 확인하기 (PowerShell):
 
-- Vercel 배포본 동작 확인 (환경변수 포함)
-- 휴대폰 폭에서의 화면 확인
-- 삽화, 낭독, 그림 → 캐릭터 변환
+```powershell
+$env:GEMINI_API_KEY="x"; npm run dev
+```
+
+## 보안과 개인정보
+
+- **계정 분리:** `user_data`는 RLS 정책(`auth.uid() = user_id`)으로 본인 행만 읽고 쓸 수 있습니다. 비로그인(`anon`) 권한은 회수돼 있습니다.
+- **탈퇴:** 서버가 access token을 Supabase로 검증한 뒤 그 사용자만 삭제합니다. 데이터는 `ON DELETE CASCADE`로 함께 지워집니다.
+- **입력 검증:** 모든 API가 길이와 형식을 서버에서 다시 검증합니다. 낭독 텍스트는 XML 특수문자를 처리한 뒤 SSML에 넣습니다.
+- **아이 정보 최소화:** 프롬프트는 아이 이름을 받지 않고, 진단·훈계 표현을 쓰지 않도록 설계돼 있습니다.
+
+> [!IMPORTANT]
+> **알려진 제한 사항**
+> - 시연용 로컬 관리자 계정(`admin123`)이 클라이언트 코드에 들어 있습니다. 이 계정의 데이터는 그 브라우저의 `localStorage`에만 저장됩니다.
+> - 생성 API(`/api/story*`, `/api/image`, `/api/tts`)에 로그인 확인과 사용량 제한이 없습니다. 공개 배포 전에 추가를 검토하세요.
+
+## 개발 가이드
+
+```bash
+npm run dev                     # 개발 서버
+npm run lint                    # ESLint
+npx tsc --noEmit                # 타입 검사
+node --test tests/*.test.cjs    # 테스트
+npm run build                   # 프로덕션 빌드
+```
+
+푸시 전에는 린트, 타입 검사, 테스트, 빌드를 모두 통과시키세요.
+
+**작업할 때 알아둘 것**
+
+- **이 저장소의 Next.js는 일반 버전과 API가 다릅니다.** 코드를 쓰기 전에 `node_modules/next/dist/docs/`의 해당 문서를 확인하세요. ([AGENTS.md](AGENTS.md))
+- **새 화면은 `useApp()`으로 상태를 받습니다.** 동화 진행은 `s`(`useStory`), 낭독은 `n`, 펫은 `pet`입니다. 화면 단계는 `s.step`(`form` → `loading` → `story` → `card`)으로 움직입니다.
+- **사용자 데이터는 `useStored(key)`로 읽고 `writeRaw(key, value)`로 씁니다.** 키는 `story-choice:<종류>:<userId>` 형식입니다.
+- **프롬프트를 고칠 때** ([`lib/story/prompts.ts`](lib/story/prompts.ts)):
+  - 어떤 선택도 틀린 선택으로 다루지 않습니다(회피 포함).
+  - 진단·훈계 표현을 쓰지 않습니다.
+  - 수정한 뒤 같은 입력으로 여러 번 돌려 JSON 형식이 깨지지 않는지 확인합니다.
+- **삽화 프롬프트**에서 주인공은 항상 `the main character`로만 부릅니다. 외형은 참조 이미지나 `characterBible`이 정합니다.
+- 커밋 메시지는 간결한 한국어로 씁니다.
+
+## 배포
+
+Vercel에 배포합니다. `.env.local`은 배포되지 않으므로 **Settings → Environment Variables**에 [환경변수](#환경변수)를 모두 넣고 다시 배포하세요. 삽화 API는 `maxDuration = 120`초를 쓰므로 이 실행 시간을 지원하는 플랜이 필요합니다.
