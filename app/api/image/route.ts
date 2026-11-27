@@ -9,7 +9,10 @@ import sharp from "sharp";
 
 export const maxDuration = 120;
 
-
+const clampSize = (value: FormDataEntryValue | null) => {
+  const size = Number(value || 512);
+  return String(Number.isFinite(size) ? Math.min(512, Math.max(256, size)) : 512);
+};
 
 export async function POST(request: Request) {
   const startedAt = performance.now();
@@ -44,8 +47,8 @@ export async function POST(request: Request) {
     let referenceHash = "";
     const references: File[] = [];
     form.set("prompt", prompt);
-    form.set("width", String(Math.min(512, Math.max(256, Number(incoming.get("width") || 512)))));
-    form.set("height", String(Math.min(512, Math.max(256, Number(incoming.get("height") || 512)))));
+    form.set("width", clampSize(incoming.get("width")));
+    form.set("height", clampSize(incoming.get("height")));
     for (let index = 0; index < 4; index += 1) {
       const reference = incoming.get(`image_${index}`) || (index === 0 ? incoming.get("image") : null);
       if (!(reference instanceof File) || reference.size === 0) continue;

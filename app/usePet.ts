@@ -50,17 +50,15 @@ export function usePet(user: string, library: SavedStory[]) {
     update((current) => ({ ...current, careDates: addUnique(current.careDates, day) }));
   }, [today, update]);
 
-  const feed = useCallback(() => {
-    if (saved.stars + storyStars - saved.spentStars < 1 || saved.fedDates.includes(today)) return false;
-    update((current) => ({ ...current, spentStars: current.spentStars + 1, growthActions: current.growthActions + 1, fedDates: addUnique(current.fedDates, today), careDates: addUnique(current.careDates, today) }));
+  // 별 1개를 써서 하루 한 번 돌봄 행동(밥 주기·쓰다듬기)을 하고 몽이를 키운다.
+  const spendCare = useCallback((dates: "fedDates" | "pettedDates") => {
+    if (state.points < 1 || saved[dates].includes(today)) return false;
+    update((current) => ({ ...current, spentStars: current.spentStars + 1, growthActions: current.growthActions + 1, [dates]: addUnique(current[dates], today), careDates: addUnique(current.careDates, today) }));
     return true;
-  }, [saved.stars, saved.spentStars, saved.fedDates, storyStars, today, update]);
+  }, [state.points, saved, today, update]);
 
-  const pet = useCallback(() => {
-    if (saved.stars + storyStars - saved.spentStars < 1 || saved.pettedDates.includes(today)) return false;
-    update((current) => ({ ...current, spentStars: current.spentStars + 1, growthActions: current.growthActions + 1, pettedDates: addUnique(current.pettedDates, today), careDates: addUnique(current.careDates, today) }));
-    return true;
-  }, [saved.stars, saved.spentStars, saved.pettedDates, storyStars, today, update]);
+  const feed = useCallback(() => spendCare("fedDates"), [spendCare]);
+  const pet = useCallback(() => spendCare("pettedDates"), [spendCare]);
 
   const setMood = useCallback((mood: PetMood) => {
     update((current) => ({

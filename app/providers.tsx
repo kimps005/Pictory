@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { parseLibrary, type SavedStory } from "@/lib/library";
 import { clearUserData, clearUserDataMemory, hydrateLocalUserData, hydrateUserData, readRaw, useStored, waitForUserDataWrites, writeRaw } from "@/lib/localStore";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { DEFAULT_SETTINGS, parseSettings, type Settings } from "@/lib/settings";
+import { parseSettings, type Settings } from "@/lib/settings";
 import { useNarration } from "./useNarration";
 import { usePet } from "./usePet";
 import { useStory } from "./useStory";
@@ -139,7 +139,7 @@ function StoryProvider({ user, displayName, children }: { user: string; displayN
 
   const setSettings = useCallback((next: Settings) => writeRaw(settingsKey, JSON.stringify(next)), [settingsKey]);
 
-  const value: AppValue = { user, displayName, s, n, pet, library, settings: settings ?? DEFAULT_SETTINGS, setSettings, saveMemo, deleteStory, clearMyData };
+  const value: AppValue = { user, displayName, s, n, pet, library, settings, setSettings, saveMemo, deleteStory, clearMyData };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
 

@@ -21,8 +21,8 @@
 //
 // 서버는 상태를 저장하지 않는다. 이 훅이 장면·선택을 들고 있다가 매 요청에 같이 보낸다.
 
-import { useCallback, useState, useSyncExternalStore } from "react";
-import { readRaw, removeKey, useStored, writeRaw, writeRawAndWait } from "@/lib/localStore";
+import { useCallback, useState } from "react";
+import { removeKey, useStored, writeRaw, writeRawAndWait } from "@/lib/localStore";
 import { useStoryImages } from "./useStoryImages";
 import type {
   ChosenChoice,
@@ -53,7 +53,6 @@ export interface StoryDraft {
 // 부모 메모는 사용자(로그인 계정)마다 따로 저장한다.
 const memoKey = (user: string) => `story-choice:lastMemo:${user}`;
 const draftKey = (user: string) => `story-choice:draft:${user}`;
-const MEMO_EVENT = "story-choice:memo";
 
 function parseDraft(raw: string | null): StoryDraft | null {
   if (!raw) return null;
@@ -82,19 +81,6 @@ async function api<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-function subscribeMemo(cb: () => void) {
-  window.addEventListener(MEMO_EVENT, cb);
-  window.addEventListener("storage", cb);
-  return () => {
-    window.removeEventListener(MEMO_EVENT, cb);
-    window.removeEventListener("storage", cb);
-  };
-}
-
-function loadMemo(user: string): string {
-  return readRaw(memoKey(user));
-}
-
 export function useStory(user = "guest") {
   const { images, appendImages, clearImages, setDrawing, hasDrawing } = useStoryImages();
   const draft = parseDraft(useStored(draftKey(user)));
@@ -112,7 +98,7 @@ export function useStory(user = "guest") {
   const [card, setCard] = useState<ParentCard | null>(null);
   const [resumePage, setResumePage] = useState<number | null>(null);
 
-  const savedMemo = useSyncExternalStore(subscribeMemo, () => loadMemo(user), () => "");
+  const savedMemo = useStored(memoKey(user)) ?? "";
 
   // 로딩 화면을 띄우고 호출한다. 실패하면 에러 문장을 남기고 backTo 화면으로 돌아간다.
   const run = useCallback(async <T,>(fn: () => Promise<T>, backTo: Step, purpose: LoadingPurpose = "story"): Promise<T | undefined> => {
@@ -217,10 +203,7 @@ export function useStory(user = "guest") {
   }, [req, title, chosen, run]);
 
   const saveMemo = useCallback(
-    (text: string) => {
-      writeRaw(memoKey(user), text.trim());
-      window.dispatchEvent(new Event(MEMO_EVENT));
-    },
+    (text: string) => writeRaw(memoKey(user), text.trim()),
     [user],
   );
 

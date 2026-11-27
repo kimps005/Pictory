@@ -164,7 +164,7 @@ test('generated illustrations never compete with an original drawing', () => {
   assert.deepEqual(sceneReferences(drawing, wrongPreviousPage, fallback), [drawing]);
   assert.deepEqual(sceneReferences(null, wrongPreviousPage, fallback), [wrongPreviousPage]);
   assert.deepEqual(sceneReferences(null, null, null), []);
-  const prompt = drawingScenePrompt('waves beside a tree', 'a blue bird', 'The protagonist waves.');
+  const prompt = drawingScenePrompt('waves beside a tree', 'a blue bird');
   assert.match(prompt, /input image 0/);
   assert.match(prompt, /appears once/);
   assert.doesNotMatch(prompt, /\b(girl|boy|kid)\b/i, 'never prime the model with substitute heroes');

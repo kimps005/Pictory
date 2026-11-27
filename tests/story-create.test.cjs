@@ -64,9 +64,10 @@ function find(tree, predicate) {
 function setup({ savedMemo = '' } = {}) {
   const story = hookRuntime(), page = hookRuntime();
   const navigations = [], deleted = [], drawings = [];
+  const readRaw = key => key === 'story-choice:lastMemo:tester' ? savedMemo : '';
   const store = {
-    useStored: () => '',
-    readRaw: key => key === 'story-choice:lastMemo:tester' ? savedMemo : '',
+    useStored: readRaw,
+    readRaw,
     writeRaw: () => {},
     removeKey: key => deleted.push(key),
   };

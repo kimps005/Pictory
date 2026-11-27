@@ -82,5 +82,5 @@ export function useNarration() {
 
   useEffect(() => () => clearPlayback(), [clearPlayback]);
 
-  return { available: true, speaking, error, rate, setRate, speak, stop };
+  return { speaking, error, rate, setRate, speak, stop };
 }

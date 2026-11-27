@@ -124,7 +124,7 @@ export default function ReadPage() {
             text={s.scenes[cur]}
             fontSize={settings.fontSize}
             textRef={reading.textRef}
-            actions={n.available && (
+            actions={(
               <span className="float-right ml-3 inline-flex gap-2 whitespace-normal align-middle leading-none">
                 <button
                   type="button"
@@ -161,8 +161,6 @@ export default function ReadPage() {
                 {reading.count > 1 && <span className="ml-2">({reading.index + 1} / {reading.count}쪽)</span>}
               </span>
             </div>
-
-            {!n.available && <p className="text-right text-sm text-ink-3">이 기기에서는 낭독을 쓸 수 없어요</p>}
 
             {atLast && s.choice && !s.isEnding && (
               <section
@@ -264,7 +262,7 @@ export default function ReadPage() {
         </section>
       )}
 
-      {settingsOpen && n.available && (
+      {settingsOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           role="presentation"

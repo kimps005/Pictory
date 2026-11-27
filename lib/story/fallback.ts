@@ -84,7 +84,6 @@ export function fallbackContinue(req: ContinueRequest): StorySegment | undefined
   return mark(story.end[`${first}${second}` as "aa" | "ab" | "ba" | "bb"], req.scenesSoFar);
 }
 
-
 // 받침 유무에 따라 조사를 고른다. (한글이 아니면 받침 없는 것으로 본다)
 function particle(word: string, withBatchim: string, without: string): string {
   const w = word.trim();

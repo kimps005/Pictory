@@ -79,7 +79,7 @@ export function removeKey(key: string) {
   const id = activeUserId;
   const writeKey = `${id}:${key}`;
   const previous = pendingWrites.get(writeKey) ?? Promise.resolve();
-  const deletion = previous.then(() => client.from("user_data").delete().eq("user_id", id).eq("key", key))
+  const deletion = previous.catch(() => undefined).then(() => client.from("user_data").delete().eq("user_id", id).eq("key", key))
     .then(({ error }) => { if (error) console.error("[user_data delete]", error.message); });
   pendingWrites.set(writeKey, deletion);
   void deletion.then(
@@ -127,7 +127,6 @@ export async function hydrateUserData(userId: string) {
   values.clear();
   for (const row of rows) values.set(row.key, typeof row.value === "string" ? row.value : JSON.stringify(row.value));
   window.dispatchEvent(new Event(EVT));
-  window.dispatchEvent(new Event("story-choice:memo"));
 }
 
 /** Supabase 권한이 없는 시연용 로컬 계정의 데이터를 이 브라우저에서만 불러온다. */
@@ -141,14 +140,12 @@ export function hydrateLocalUserData(userId: string) {
     if (storedKey?.startsWith(prefix)) values.set(storedKey.slice(prefix.length), localStorage.getItem(storedKey) ?? "");
   }
   window.dispatchEvent(new Event(EVT));
-  window.dispatchEvent(new Event("story-choice:memo"));
 }
 
 export async function clearUserData() {
   const id = activeUserId;
   values.clear();
   window.dispatchEvent(new Event(EVT));
-  window.dispatchEvent(new Event("story-choice:memo"));
   if (localOnly && id) {
     const prefix = `${LOCAL_PREFIX}${id}:`;
     const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))

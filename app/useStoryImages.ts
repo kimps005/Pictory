@@ -63,9 +63,9 @@ export function useStoryImages() {
           form.set("mode", original ? "drawing-scene" : reference.current ? "scene" : "text");
           if (original) {
             const previous = reference.current;
-            form.set("prompt", drawingScenePrompt(scene.imagePrompt, cast, scene.text, !!previous));
+            form.set("prompt", drawingScenePrompt(scene.imagePrompt, cast, !!previous));
             // 서버가 주인공 누락을 감지하면 쓰는 재시도용·배경용 프롬프트
-            form.set("retryPrompt", drawingScenePrompt(scene.imagePrompt, cast, scene.text, !!previous, true));
+            form.set("retryPrompt", drawingScenePrompt(scene.imagePrompt, cast, !!previous, true));
             form.set("backgroundPrompt", backgroundScenePrompt(scene.imagePrompt, scene.text));
             form.set("image_0", original);
             if (previous) form.set("scene_ref", previous);

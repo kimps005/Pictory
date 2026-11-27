@@ -74,8 +74,10 @@ export function CreateForm({ fresh = false }: { fresh?: boolean }) {
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, [fresh, formKey, router]);
 
+  // 저장된 그림은 처음 한 번만 캔버스에 복원한다. 획마다 다시 그리면 되돌리기 기록이 초기화된다.
+  const initialSketch = useRef(form.sketchDataUrl);
   useEffect(() => {
-    const source = form.sketchDataUrl;
+    const source = initialSketch.current;
     const canvas = canvasRef.current;
     if (fresh || !source || !canvas) return;
     let active = true;
@@ -93,7 +95,7 @@ export function CreateForm({ fresh = false }: { fresh?: boolean }) {
     };
     image.src = source;
     return () => { active = false; };
-  }, [fresh, form.sketchDataUrl]);
+  }, [fresh]);
 
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

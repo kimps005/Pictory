@@ -22,7 +22,7 @@ export function drawingBounds(data: Uint8ClampedArray, width: number, height: nu
 // Only positive wording: listing "girl, boy, child" as things to avoid makes small
 // image models draw exactly those instead of the drawn character.
 // supportingCast is the story model's fixed list of NON-protagonist characters.
-export function drawingScenePrompt(visualPrompt: string, supportingCast: string, _narration: string, hasPreviousPage = false, retry = false) {
+export function drawingScenePrompt(visualPrompt: string, supportingCast: string, hasPreviousPage = false, retry = false) {
   return [
     retry ? "IMPORTANT: the previous attempt forgot the drawn character. The drawn character from input image 0 must be the large, central hero of this picture." : "",
     "One storybook page. The main character is the exact character drawn in input image 0 (a child's drawing): same silhouette, body shape, face, colours, marks and line style. It appears once, large and in the foreground, as the hero of the scene.",

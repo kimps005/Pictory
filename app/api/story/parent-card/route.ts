@@ -1,3 +1,4 @@
+import { readJsonBody } from "@/lib/http";
 import { generateParentCard } from "@/lib/story/generate";
 import { PARENT_CARD_SYSTEM_PROMPT, buildParentCardPrompt } from "@/lib/story/prompts";
 import { fallbackParentCard } from "@/lib/story/fallback";
@@ -10,15 +11,8 @@ import { parseParentCardRequest } from "@/lib/story/validate";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
-  let raw: unknown;
-  try {
-    raw = await request.json();
-  } catch {
-    return Response.json({ error: "JSON 본문이 필요합니다." }, { status: 400 });
-  }
-
-  const parsed = parseParentCardRequest(raw);
-  if (typeof parsed === "string") return Response.json({ error: parsed }, { status: 400 });
+  const parsed = await readJsonBody(request, parseParentCardRequest);
+  if (parsed instanceof Response) return parsed;
 
   try {
     return Response.json(await generateParentCard(PARENT_CARD_SYSTEM_PROMPT, buildParentCardPrompt(parsed)));
